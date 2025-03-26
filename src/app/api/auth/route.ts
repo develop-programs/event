@@ -1,68 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { z } from "zod";
+import * as bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-// Validation schemas
-const signupSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email format"),
-  phone: z.string().min(10, "Phone number must be at least 10 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  Branch: z.string().min(1, "Branch is required"),
-  Course: z.string().min(1, "Course is required"),
-});
-
-const loginSchema = z.object({
-  email: z.string().email("Invalid email format"),
-  password: z.string().min(1, "Password is required"),
-});
-
+// Sign up endpoint
 export async function POST(request: NextRequest) {
+  const body = await request.json();
   try {
-    const body = await request.json();
-    const { type } = body;
-
-    switch (type) {
-      case "signup":
-        return handleSignup(body);
-      case "login":
-        return handleLogin(body);
-      default:
-        return NextResponse.json(
-          { error: "Invalid request type" },
-          { status: 400 }
-        );
-    }
-  } catch (error) {
-    console.error("Authentication error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
-async function handleSignup(body: any) {
-  try {
-    // Validate input
-    const validation = signupSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: validation.error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    const { name, email, phone, password, Branch, Course } = body;
-
-    // Check if user already exists
     const existingUser = await prisma.user.findFirst({
-      where: { email },
+      where: {
+        email: body.email,
+      },
     });
 
     if (existingUser) {
@@ -72,103 +21,157 @@ async function handleSignup(body: any) {
       );
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password before storing
+    const hashedPassword = await bcrypt.hash(body.password, 10);
 
-    // Create user
-    const user = await prisma.user.create({
+    // MongoDB compatible ID without hyphens
+    const newUser = await prisma.user.create({
       data: {
-        name,
-        email,
-        phone,
+        // Let MongoDB generate the ID automatically
+        email: body.email,
         password: hashedPassword,
-        Branch,
-        Course,
+        Branch: body.Branch,
+        Course: body.Course,
+        name: body.name,
+        phone: body.phone,
       },
     });
 
-    // Generate JWT token
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
-    return NextResponse.json(
-      {
-        message: "User created successfully",
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-        },
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error("Signup error:", error);
-    return NextResponse.json(
-      { error: "Failed to create user" },
-      { status: 500 }
-    );
+    // Remove password from response
+    const { password, ...userWithoutPassword } = newUser;
+    return NextResponse.json({ user: userWithoutPassword }, { status: 201 });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
-async function handleLogin(body: any) {
+// Login endpoint
+export async function PUT(request: NextRequest) {
+  const body = await request.json();
   try {
-    // Validate input
-    const validation = loginSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: validation.error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    const { email, password } = body;
-
-    // Find user
     const user = await prisma.user.findFirst({
-      where: { email },
+      where: {
+        email: body.email,
+      },
     });
 
     if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const passwordValid = await bcrypt.compare(body.password, user.password);
+
+    if (!passwordValid) {
       return NextResponse.json(
-        { error: "Invalid email or password" },
+        { error: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    // Compare passwords
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return NextResponse.json(
-        { error: "Invalid email or password" },
-        { status: 401 }
-      );
-    }
+    // Remove password from response
+    const { password, ...userWithoutPassword } = user;
+    return NextResponse.json({ user: userWithoutPassword });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+}
 
-    // Generate JWT token
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-      expiresIn: "7d",
+// Get user information
+export async function GET(request: NextRequest) {
+  prisma.$connect();
+  try {
+    const user = await prisma.user.findMany();
+    return await NextResponse.json({ user });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  } finally {
+    prisma.$disconnect();
+  }
+}
+
+// Update user information
+export async function PATCH(request: NextRequest) {
+  const body = await request.json();
+  const userId = body.userId;
+
+  if (!userId) {
+    return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+  }
+
+  try {
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        id: userId,
+      },
     });
 
-    return NextResponse.json(
-      {
-        message: "Login successful",
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-        },
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Prepare update data (only include fields that are provided)
+    const updateData: any = {};
+    if (body.name) updateData.name = body.name;
+    if (body.phone) updateData.phone = body.phone;
+    if (body.Branch) updateData.Branch = body.Branch;
+    if (body.Course) updateData.Course = body.Course;
+    if (body.password)
+      updateData.password = await bcrypt.hash(body.password, 10);
+
+    // Update user
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: userId,
       },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Login error:", error);
-    return NextResponse.json(
-      { error: "Failed to authenticate" },
-      { status: 500 }
-    );
+      data: updateData,
+    });
+
+    // Remove password from response
+    const { password, ...userWithoutPassword } = updatedUser;
+    return NextResponse.json({ user: userWithoutPassword });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+}
+
+// Delete user
+export async function DELETE(request: NextRequest) {
+  const userId = request.nextUrl.searchParams.get("userId");
+
+  if (!userId) {
+    return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+  }
+
+  try {
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Delete user
+    await prisma.user.delete({
+      where: {
+        id: userId,
+      },
+    });
+
+    return NextResponse.json({ message: "User deleted successfully" });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
