@@ -1,3 +1,4 @@
+import Login from '@/components/custom/Login'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -16,9 +17,7 @@ export default function page() {
               </Button>
             </Link>
             <Image src="/logo.png" alt="logo" width={200} height={200} loading='lazy' decoding='async' className='w-32 md:w-100' />
-            <Button>
-              SignIn
-            </Button>
+            <Login />
             <Image src="/techinca_logo_clear.png" alt="logo" width={200} height={200} loading='lazy' decoding='async' className='w-[calc(200px/2)] md:w-38 md:hidden' />
           </div>
         </section>
