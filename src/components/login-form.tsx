@@ -22,6 +22,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 
 // Define the form schema using zod
 const formSchema = z.object({
@@ -47,9 +48,16 @@ export function LoginForm({
   });
 
   // Handle form submission
-  function onSubmit(values: FormValues) {
-    console.log(values);
-    // Add your login logic here
+  async function onSubmit(values: FormValues) {
+    try {
+      await signIn("credentials", {
+        email: values.email,
+        password: values.password,
+        redirect: true,
+      });
+    } catch (error) {
+      console.error("Failed to login", error);
+    }
   }
 
   return (

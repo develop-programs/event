@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcrypt";
+import { isConnected, connect, disconnect } from "@/database/connect";
 
 const prisma = new PrismaClient();
 
@@ -15,25 +15,20 @@ const handler = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password) {
-          return null;
-        }
-        const user = await prisma.user.findFirst({
-          where: {
-            email: credentials.username,
-          },
-        });
-        if (!user) {
-          return null;
-        }
-        const isValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-        return isValid ? user : null;
+        if (!isConnected()) await connect();
+        return null;
       },
     }),
   ],
+  callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
+    },
+  },
   pages: {
     signIn: "/api/auth/signin",
     newUser: "/api/auth/newuser",
