@@ -1,14 +1,10 @@
-// Import React and Next.js components
+"use client";
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-
-// Import custom components
 import CountdownTimer from "@/components/custom/CountdownTimer";
-import Login from "@/components/custom/Login";
 import { Button } from "@/components/ui/button";
 
-// Define reusable image component for consistent styling
 const LogoImage = ({
   src,
   alt,
@@ -29,7 +25,58 @@ const LogoImage = ({
   />
 );
 
-export default function HomePage() {
+export default function page() {
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    // Create audio element
+    audioRef.current = new Audio("/squid_games_3.mp3");
+
+    // Configure audio
+    if (audioRef.current) {
+      audioRef.current.volume = 0.5;
+      audioRef.current.loop = true;
+
+      // Play audio and handle loading state
+      const playPromise = audioRef.current.play();
+
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            // Audio started playing successfully
+            setTimeout(() => setIsLoading(false), 1000); // Show content after 1.5s
+          })
+          .catch((error) => {
+            console.log("Autoplay prevented. User interaction required.");
+            setIsLoading(false); // Show content anyway if audio fails
+          });
+      } else {
+        setIsLoading(false); // Fallback for browsers where play() doesn't return a promise
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    };
+  }, []);
+
+  // Show loading screen while audio is initializing
+  if (isLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-black">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-pink-500 mx-auto mb-4"></div>
+          <p className="text-white text-xl">Loading experience...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full p-2 md:p-6">
       <div className="inset-0 w-full h-full rounded-lg bg-black/70 p-6">
@@ -38,23 +85,23 @@ export default function HomePage() {
           <div className="flex justify-between items-center">
             {/* Mobile Mumbai Indians Logo */}
             <LogoImage
-              src="/269-2692179_mumbai-indians-logo-png-removebg-preview.png"
+              src="/269-2692179_mumbai-indians-logo-png.png"
               alt="Mumbai Indians logo"
-              className="size-10 md:size-32 invert"
+              className="size-16 md:size-26 xl:size-32"
             />
 
             {/* Main Logo */}
             <LogoImage
               src="/logo.png"
               alt="Main logo"
-              className="w-32 md:w-100"
+              className="w-32 md:w-72 xl:w-100"
             />
 
             {/* Mobile Technica Logo */}
             <LogoImage
               src="/techinca_logo_clear.png"
               alt="Technica logo"
-              className="w-[calc(150px/2)] md:w-38"
+              className="w-[calc(100px/2)] md:w-24 xl:w-38"
             />
           </div>
         </section>
@@ -62,13 +109,13 @@ export default function HomePage() {
         {/* Main Content Section */}
         <section
           aria-label="main-section"
-          className="h-[calc(100%-6rem)] md:h-[calc(100%-18rem)] py-12"
+          className="h-[calc(100%-6rem)] md:h-[calc(100%-12rem)] py-4 min-[375px]:py-24 min-[412px]:py-28 lg:py-12 xl:py-12"
         >
           <div className="h-full text-white flex flex-col justify-between items-center">
             {/* Title and Subtitle */}
             <div className="text-center space-y-2">
               <h1
-                className="text-3xl md:text-6xl font-bold bg-gradient-to-r from-pink-500 via-red-600 to-pink-500 
+                className="text-3xl md:text-4xl lg:text-6xl font-bold bg-gradient-to-r from-pink-500 via-red-600 to-pink-500 
                   uppercase bg-clip-text text-transparent animate-gradient pb-2 drop-shadow-lg"
               >
                 Intra University Coding Competition
@@ -78,7 +125,6 @@ export default function HomePage() {
                 <span className="font-extrabold bg-gradient-to-r from-green-400 to-teal-600 bg-clip-text text-transparent">
                   Squid Game
                 </span>{" "}
-                - Survive the challenges
               </p>
             </div>
 
@@ -92,6 +138,7 @@ export default function HomePage() {
               className="bg-black/30 backdrop-blur-sm p-6 rounded-xl border border-white/10 
                 text-center w-full max-w-2xl mx-auto"
             >
+              <h2 className="text-xl font-bold">2 April 2025</h2>
               <h2 className="text-md md:text-2xl font-semibold mb-4">
                 Organized by:
               </h2>
@@ -140,17 +187,15 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Footer Section */}
-        <section aria-label="bottom-section">
+        {/* <section aria-label="bottom-section">
           <div className="h-full flex justify-center items-center">
-            {/* Center Logo */}
             <LogoImage
               src="/image-1.png"
               alt="Center logo"
               className="w-28 md:w-42"
             />
           </div>
-        </section>
+        </section> */}
       </div>
     </div>
   );
