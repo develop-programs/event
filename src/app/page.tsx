@@ -38,22 +38,13 @@ export default function page() {
       audioRef.current.volume = 0.5;
       audioRef.current.loop = true;
 
-      // Play audio and handle loading state
-      const playPromise = audioRef.current.play();
+      // Attempt to play audio automatically
+      audioRef.current.play().catch((error) => {
+        console.log("Auto-play failed:", error);
+      });
 
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            // Audio started playing successfully
-            setTimeout(() => setIsLoading(false), 1000); // Show content after 1.5s
-          })
-          .catch((error) => {
-            console.log("Autoplay prevented. User interaction required.");
-            setIsLoading(false); // Show content anyway if audio fails
-          });
-      } else {
-        setIsLoading(false); // Fallback for browsers where play() doesn't return a promise
-      }
+      // Show content after brief loading period
+      setTimeout(() => setIsLoading(false), 500);
     }
 
     // Cleanup function
@@ -65,7 +56,7 @@ export default function page() {
     };
   }, []);
 
-  // Show loading screen while audio is initializing
+  // Show loading screen briefly while page initializes
   if (isLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-black">
