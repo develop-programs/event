@@ -71,7 +71,7 @@ export default function page() {
       <div className="h-screen w-full flex items-center justify-center bg-black">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-white text-xl">Loading experience...</p>
+          <p className="text-white text-xl">Eleminating</p>
         </div>
       </div>
     );
